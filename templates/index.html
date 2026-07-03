@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Free-Tier Agent</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f0f0f;
+      color: #e8e8e8;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 0.3rem;
+      background: linear-gradient(135deg, #6ee7f7, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 2rem;
+    }
+
+    .input-row {
+      display: flex;
+      width: 100%;
+      max-width: 760px;
+      gap: 0.6rem;
+      margin-bottom: 1.5rem;
+    }
+
+    #goal-input {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      border: 1px solid #333;
+      background: #1a1a1a;
+      color: #e8e8e8;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    #goal-input:focus { border-color: #6ee7f7; }
+
+    #run-btn {
+      padding: 0.75rem 1.4rem;
+      border-radius: 10px;
+      border: none;
+      background: linear-gradient(135deg, #6ee7f7, #a78bfa);
+      color: #0f0f0f;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    #run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .models-bar {
+      width: 100%;
+      max-width: 760px;
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .model-chip {
+      padding: 0.3rem 0.8rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border: 1px solid #333;
+      background: #1a1a1a;
+      color: #aaa;
+    }
+    .model-chip.active { border-color: #6ee7f7; color: #6ee7f7; }
+
+    #log {
+      width: 100%;
+      max-width: 760px;
+      background: #141414;
+      border: 1px solid #222;
+      border-radius: 12px;
+      padding: 1rem;
+      min-height: 300px;
+      max-height: 60vh;
+      overflow-y: auto;
+      font-family: 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.82rem;
+      line-height: 1.6;
+    }
+
+    .log-entry {
+      padding: 0.3rem 0;
+      border-bottom: 1px solid #1e1e1e;
+      display: flex;
+      gap: 0.6rem;
+      align-items: flex-start;
+    }
+
+    .tag {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.1rem 0.45rem;
+      border-radius: 4px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .tag-planner   { background: #1d3557; color: #6ee7f7; }
+    .tag-executor  { background: #2d1b4e; color: #a78bfa; }
+    .tag-summarizer{ background: #1a2e1a; color: #6fcf97; }
+    .tag-tool      { background: #3b2800; color: #f6ad55; }
+    .tag-router    { background: #2a1a1a; color: #fc8181; }
+    .tag-done      { background: #14532d; color: #86efac; }
+    .tag-error     { background: #7f1d1d; color: #fca5a5; }
+    .tag-start     { background: #1c2336; color: #93c5fd; }
+
+    .msg-text { color: #ccc; word-break: break-word; }
+
+    #final-box {
+      width: 100%;
+      max-width: 760px;
+      margin-top: 1rem;
+      background: #0d2318;
+      border: 1px solid #166534;
+      border-radius: 12px;
+      padding: 1rem 1.2rem;
+      display: none;
+    }
+    #final-box h3 { color: #86efac; margin-bottom: 0.5rem; font-size: 0.95rem; }
+    #final-text { color: #d1fae5; font-size: 0.9rem; line-height: 1.7; white-space: pre-wrap; }
+
+    #status {
+      width: 100%;
+      max-width: 760px;
+      text-align: right;
+      font-size: 0.8rem;
+      color: #555;
+      margin-top: 0.5rem;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border: 2px solid #555;
+      border-top-color: #6ee7f7;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <h1>Free-Tier Agent</h1>
+  <p class="subtitle">Gemini Flash → Groq Llama-3 → Mistral &nbsp;|&nbsp; LiteLLM failover &nbsp;|&nbsp; LangGraph loop</p>
+
+  <div class="models-bar">
+    <span class="model-chip" id="chip-gemini">Gemini Flash</span>
+    <span class="model-chip" id="chip-groq">Groq Llama-3</span>
+    <span class="model-chip" id="chip-mistral">Mistral Small</span>
+  </div>
+
+  <div class="input-row">
+    <input id="goal-input" type="text"
+      placeholder="Enter your goal... e.g. 'Calculate revenue for 200 users at $29/month'"
+      autofocus />
+    <button id="run-btn" onclick="runAgent()">Run Agent</button>
+  </div>
+
+  <div id="log"><span style="color:#444">Agent output will appear here...</span></div>
+  <div id="final-box">
+    <h3>Final Answer</h3>
+    <div id="final-text"></div>
+  </div>
+  <div id="status"></div>
+
+<script>
+  const log       = document.getElementById('log');
+  const finalBox  = document.getElementById('final-box');
+  const finalText = document.getElementById('final-text');
+  const statusEl  = document.getElementById('status');
+  const btn       = document.getElementById('run-btn');
+
+  // Model chips for live highlighting
+  const chips = {
+    gemini:  document.getElementById('chip-gemini'),
+    groq:    document.getElementById('chip-groq'),
+    mistral: document.getElementById('chip-mistral'),
+  };
+
+  let es = null;  // EventSource
+
+  function appendLog(tag, cssClass, text) {
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.innerHTML = `
+      <span class="tag ${cssClass}">${tag}</span>
+      <span class="msg-text">${escHtml(text)}</span>
+    `;
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function highlightModel(text) {
+    // Light up the chip for whichever model is in use
+    Object.values(chips).forEach(c => c.classList.remove('active'));
+    if (text.includes('gemini'))  chips.gemini.classList.add('active');
+    else if (text.includes('groq') || text.includes('llama')) chips.groq.classList.add('active');
+    else if (text.includes('mistral')) chips.mistral.classList.add('active');
+  }
+
+  function runAgent() {
+    const goal = document.getElementById('goal-input').value.trim();
+    if (!goal) { alert('Please enter a goal first.'); return; }
+
+    // Reset UI
+    log.innerHTML = '';
+    finalBox.style.display = 'none';
+    finalText.textContent = '';
+    Object.values(chips).forEach(c => c.classList.remove('active'));
+    btn.disabled = true;
+    statusEl.innerHTML = '<span class="spinner"></span> Running agent...';
+
+    // Close any existing stream
+    if (es) { es.close(); es = null; }
+
+    const encoded = encodeURIComponent(goal);
+    es = new EventSource(`/run?goal=${encoded}`);
+
+    es.addEventListener('start', e => {
+      const d = JSON.parse(e.data);
+      appendLog('START', 'tag-start', `Goal: ${d.goal}`);
+    });
+
+    es.addEventListener('step', e => {
+      const d = JSON.parse(e.data);
+      const tagMap = {
+        planner:    ['PLAN',  'tag-planner'],
+        executor:   ['EXEC',  'tag-executor'],
+        summarizer: ['SUMM',  'tag-summarizer'],
+        tool:       ['TOOL',  'tag-tool'],
+        router:     ['ROUTE', 'tag-router'],
+      };
+      const [tag, cls] = tagMap[d.type] || ['INFO', 'tag-start'];
+      appendLog(tag, cls, d.text);
+      highlightModel(d.text.toLowerCase());
+    });
+
+    es.addEventListener('done', e => {
+      const d = JSON.parse(e.data);
+      appendLog('DONE', 'tag-done', `Completed in ${d.steps} step(s)`);
+      finalText.textContent = d.final_output;
+      finalBox.style.display = 'block';
+      statusEl.textContent = `Finished — ${d.steps} step(s)`;
+      btn.disabled = false;
+      es.close(); es = null;
+    });
+
+    es.addEventListener('error', e => {
+      try {
+        const d = JSON.parse(e.data);
+        appendLog('ERROR', 'tag-error', d.message);
+      } catch(_) {
+        appendLog('ERROR', 'tag-error', 'Stream error or server closed connection.');
+      }
+      statusEl.textContent = 'Error.';
+      btn.disabled = false;
+      es.close(); es = null;
+    });
+
+    es.onerror = () => {
+      if (es && es.readyState === EventSource.CLOSED) {
+        statusEl.textContent = 'Stream closed.';
+        btn.disabled = false;
+      }
+    };
+  }
+
+  // Also allow Enter key to submit
+  document.getElementById('goal-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') runAgent();
+  });
+</script>
+</body>
+</html>
