@@ -1,0 +1,20 @@
+# Replit configuration for free-tier-agent
+# ==========================================
+# This file tells Replit:
+#   - How to run the app
+#   - Which language / nix packages to use
+#   - Where to expose the web port
+
+modules = ["python-3.11"]
+run = "gunicorn --bind 0.0.0.0:5000 --timeout 120 --workers 1 --threads 4 app:app"
+
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+run = ["sh", "-c", "gunicorn --bind 0.0.0.0:5000 --timeout 120 --workers 1 --threads 4 app:app"]
+deploymentTarget = "cloudrun"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
