@@ -1,7 +1,11 @@
-# Core framework
+# Core agent framework
 langchain>=0.2.0
 langgraph>=0.1.0
 litellm>=1.40.0
+
+# Web server
+flask>=3.0.0
+gunicorn>=21.2.0
 
 # Environment management
 python-dotenv>=1.0.0
@@ -12,5 +16,5 @@ typing-extensions>=4.9.0
 # LangChain core (messages, etc.)
 langchain-core>=0.2.0
 
-# Optional: for richer logging
+# Optional: for richer terminal logging
 rich>=13.7.0
